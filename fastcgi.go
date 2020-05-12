@@ -43,7 +43,7 @@ const (
 )
 
 type FastCGIRecord struct {
-	Header *FastCGIHeader
+	Header *FCGIHeader
 }
 
 type BeginRequestBody struct {
@@ -85,7 +85,7 @@ func (bqb *BeginRequestBody) Role() uint16 {
 	return uint16(bqb.RoleB1)<<8 + uint16(bqb.RoleB0)
 }
 
-type FastCGIHeader struct {
+type FCGIHeader struct {
 	Version         uint8
 	Type            uint8
 	RequestIDB1     uint8
@@ -96,15 +96,25 @@ type FastCGIHeader struct {
 	Reserved        uint8
 }
 
-func (hdr *FastCGIHeader) Bytes() []byte {
+func (hdr *FCGIHeader) Bytes() []byte {
 	return []byte{hdr.Type, hdr.Type, hdr.RequestIDB1, hdr.RequestIDB0, hdr.ContentLengthB1, hdr.ContentLengthB0, hdr.PaddingLength, hdr.Reserved}
 }
 
-func (hdr *FastCGIHeader) RequestID() uint16 {
+func (hdr *FCGIHeader) WithRequestID(id uint16) {
+	hdr.RequestIDB0 = uint8(id)
+	hdr.RequestIDB1 = uint8(id >> 8)
+}
+
+func (hdr *FCGIHeader) RequestID() uint16 {
 	return uint16(hdr.RequestIDB1)<<8 + uint16(hdr.RequestIDB0)
 }
 
-func (hdr *FastCGIHeader) ContentLength() uint16 {
+func (hdr *FCGIHeader) WithContentLength(l uint16) {
+	hdr.ContentLengthB0 = uint8(l)
+	hdr.ContentLengthB1 = uint8(l >> 8)
+}
+
+func (hdr *FCGIHeader) ContentLength() uint16 {
 	return uint16(hdr.ContentLengthB1)<<8 + uint16(hdr.ContentLengthB0)
 }
 
@@ -319,13 +329,13 @@ func proxyPass(data []byte, fpmConn net.Conn) []byte {
 	return receive[0:v]
 }
 
-func parseRecord(data []byte, starts int) (*FastCGIHeader, []byte, int) {
+func parseRecord(data []byte, starts int) (*FCGIHeader, []byte, int) {
 	if starts+8 > len(data) {
 		return nil, nil, starts
 	}
 
 	d := data[starts : starts+8]
-	hdr := &FastCGIHeader{
+	hdr := &FCGIHeader{
 		Version:         d[0],
 		Type:            d[1],
 		RequestIDB1:     d[2],
