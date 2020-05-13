@@ -83,6 +83,15 @@ type Header struct {
 	Reserved        uint8
 }
 
+func NewHeader(hType RecordType, requestID uint16) *Header {
+	h := &Header{
+		Version: Version1,
+		Type:    hType,
+	}
+	h.WithRequestID(requestID)
+	return h
+}
+
 func (hdr *Header) Bytes() []byte {
 	return []byte{hdr.Version, byte(hdr.Type), hdr.RequestIDB1, hdr.RequestIDB0, hdr.ContentLengthB1, hdr.ContentLengthB0, hdr.PaddingLength, hdr.Reserved}
 }
@@ -127,9 +136,8 @@ type BeginRequestRecord struct {
 }
 
 func NewBeginRequestRecord(requestID uint16, body *BeginRequestBody) *BeginRequestRecord {
-	header := &Header{Version: Version1, Type: TypeBeginRequest}
+	header := NewHeader(TypeBeginRequest, requestID)
 	header.WithContentLength(8)
-	header.WithRequestID(requestID)
 	return &BeginRequestRecord{
 		Header: header,
 		Body:   body,
@@ -165,9 +173,8 @@ type EndRequestRecord struct {
 }
 
 func NewEndRequestRecord(requestID uint16, body *EndRequestBody) *EndRequestRecord {
-	header := &Header{Version: Version1, Type: TypeEndRequest}
+	header := NewHeader(TypeEndRequest, requestID)
 	header.WithContentLength(8)
-	header.WithRequestID(requestID)
 	return &EndRequestRecord{
 		Header: header,
 		Body:   body,
@@ -179,10 +186,8 @@ type AbortRequestRecord struct {
 }
 
 func NewAbortRequestRecord(requestID uint16) *AbortRequestRecord {
-	header := &Header{Version: Version1, Type: TypeAbortRequest}
-	header.WithRequestID(requestID)
 	return &AbortRequestRecord{
-		Header: header,
+		Header: NewHeader(TypeAbortRequest, requestID),
 	}
 }
 
@@ -192,25 +197,21 @@ type ParamsRecord struct {
 }
 
 func NewParamsRecord(requestID uint16) *ParamsRecord {
-	header := &Header{Version: Version1, Type: TypeParams}
-	header.WithRequestID(requestID)
 	return &ParamsRecord{
-		Header:         header,
+		Header:         NewHeader(TypeParams, requestID),
 		nameValuePairs: make([]*NameValuePair, 0),
 	}
 }
 
-func (pr *ParamsRecord) AddNameValuePair(nvp *NameValuePair) error {
+func (pr *ParamsRecord) AddNameValuePair(nvp *NameValuePair) bool {
 	contentLen := pr.Header.ContentLength()
 	newContentLen := contentLen + nvp.Length()
 	if newContentLen < contentLen {
-		// TODO
-		return fmt.Errorf("")
+		return false
 	}
 	pr.nameValuePairs = append(pr.nameValuePairs, nvp)
 	pr.Header.WithContentLength(newContentLen)
-
-	return nil
+	return true
 }
 
 func (pr *ParamsRecord) NameValuePairs() []*NameValuePair {
