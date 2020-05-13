@@ -58,7 +58,7 @@ const (
 	RoleFilter     uint16 = 3
 
 	// Mask for flags component of FCGI_BeginRequestBody
-	FCGIKeepConn uint8 = 1
+	FlagKeepConn uint8 = 1
 )
 
 type Header struct {
@@ -167,6 +167,8 @@ func NewEndRequestRecord(requestID uint16, body *EndRequestBody) *EndRequestReco
 		Body:   body,
 	}
 }
+
+type
 
 type NameValuePair struct {
 	Name  string
