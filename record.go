@@ -121,6 +121,21 @@ func (bqb *BeginRequestBody) WithRole(r uint16) {
 	bqb.RoleB1 = uint8(r >> 8)
 }
 
+type BeginRequestRecord struct {
+	Header *Header
+	Body   *BeginRequestBody
+}
+
+func NewBeginRequestRecord(requestID uint16, body *BeginRequestBody) *BeginRequestRecord {
+	header := &Header{Version: Version1, Type: TypeBeginRequest}
+	header.WithContentLength(8)
+	header.WithRequestID(requestID)
+	return &BeginRequestRecord{
+		Header: header,
+		Body:   body,
+	}
+}
+
 type EndRequestBody struct {
 	AppStatusB3    uint8
 	AppStatusB2    uint8
@@ -144,26 +159,6 @@ func (erb *EndRequestBody) WithAppStatus(status uint32) {
 	erb.AppStatusB1 = uint8(status >> 24)
 }
 
-type UnknownTypeBody struct {
-	Type     uint8
-	Reserved [7]uint8
-}
-
-type BeginRequestRecord struct {
-	Header *Header
-	Body   *BeginRequestBody
-}
-
-func NewBeginRequestRecord(requestID uint16, body *BeginRequestBody) *BeginRequestRecord {
-	header := &Header{Version: Version1, Type: TypeBeginRequest}
-	header.WithContentLength(8)
-	header.WithRequestID(requestID)
-	return &BeginRequestRecord{
-		Header: header,
-		Body:   body,
-	}
-}
-
 type EndRequestRecord struct {
 	Header *Header
 	Body   *EndRequestBody
@@ -177,6 +172,54 @@ func NewEndRequestRecord(requestID uint16, body *EndRequestBody) *EndRequestReco
 		Header: header,
 		Body:   body,
 	}
+}
+
+type AbortRequestRecord struct {
+	Header *Header
+}
+
+func NewAbortRequestRecord(requestID uint16) *AbortRequestRecord {
+	header := &Header{Version: Version1, Type: TypeAbortRequest}
+	header.WithRequestID(requestID)
+	return &AbortRequestRecord{
+		Header: header,
+	}
+}
+
+type ParamsRecord struct {
+	Header         *Header
+	nameValuePairs []*NameValuePair
+}
+
+func NewParamsRecord(requestID uint16) *ParamsRecord {
+	header := &Header{Version: Version1, Type: TypeParams}
+	header.WithRequestID(requestID)
+	return &ParamsRecord{
+		Header:         header,
+		nameValuePairs: make([]*NameValuePair, 0),
+	}
+}
+
+func (pr *ParamsRecord) AddNameValuePair(nvp *NameValuePair) error {
+	contentLen := pr.Header.ContentLength()
+	newContentLen := contentLen + nvp.Length()
+	if newContentLen < contentLen {
+		// TODO
+		return fmt.Errorf("")
+	}
+	pr.nameValuePairs = append(pr.nameValuePairs, nvp)
+	pr.Header.WithContentLength(newContentLen)
+
+	return nil
+}
+
+func (pr *ParamsRecord) NameValuePairs() []*NameValuePair {
+	return pr.nameValuePairs
+}
+
+type UnknownTypeBody struct {
+	Type     uint8
+	Reserved [7]uint8
 }
 
 type NameValuePair struct {
