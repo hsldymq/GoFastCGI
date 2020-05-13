@@ -168,8 +168,6 @@ func NewEndRequestRecord(requestID uint16, body *EndRequestBody) *EndRequestReco
 	}
 }
 
-type
-
 type NameValuePair struct {
 	Name  string
 	Value string
