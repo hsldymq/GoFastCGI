@@ -6,44 +6,92 @@ import (
 	"time"
 )
 
-// Value for version component of FCGI_Header
-const (
-	FCGI_VERSION_1 uint8 = 1
-)
+type RecordType uint8
 
-// Values for type component of FCGI_Header
-const (
-	FCGI_BEGIN_REQUEST     uint8 = 1
-	FCGI_ABORT_REQUEST     uint8 = 2
-	FCGI_END_REQUEST       uint8 = 3
-	FCGI_PARAMS            uint8 = 4
-	FCGI_STDIN             uint8 = 5
-	FCGI_STDOUT            uint8 = 6
-	FCGI_STDERR            uint8 = 7
-	FCGI_DATA              uint8 = 8
-	FCGI_GET_VALUES        uint8 = 9
-	FCGI_GET_VALUES_RESULT uint8 = 10
-	FCGI_UNKNOWN_TYPE      uint8 = 11
-	FCGI_MAXTYPE           uint8 = FCGI_UNKNOWN_TYPE
-)
+var recordTypeNames = []string{
+	"",
+	"FCGI_BEGIN_REQUEST",
+	"FCGI_ABORT_REQUEST",
+	"FCGI_END_REQUEST",
+	"FCGI_PARAMS",
+	"FCGI_STDIN",
+	"FCGI_STDOUT",
+	"FCGI_STDERR",
+	"FCGI_DATA",
+	"FCGI_GET_VALUES",
+	"FCGI_GET_VALUES_RESULT",
+	"FCGI_UNKNOWN_TYPE",
+	"FCGI_MAXTYPE",
+}
 
-// Value for requestId component of FCGI_Header
-const (
-	FCGI_NULL_REQUEST_ID uint8 = 0
-)
+func (rt RecordType) String() string {
+	if int(rt) >= len(recordTypeNames) {
+		return ""
+	}
+	return recordTypeNames[rt]
+}
 
 const (
+	// Values for type component of FCGI_Header
+	TypeBeginRequest    RecordType = 1
+	TypeAbortRequest    RecordType = 2
+	TypeEndRequest      RecordType = 3
+	TypeParams          RecordType = 4
+	TypeSTDIn           RecordType = 5
+	TypeSTDOut          RecordType = 6
+	TypeSTDErr          RecordType = 7
+	TypeData            RecordType = 8
+	TypeGetValues       RecordType = 9
+	TypeGetValuesResult RecordType = 10
+	TypeUnknownType     RecordType = 11
+	TypeMaxType         RecordType = TypeUnknownType
+
+	// Value for version component of FCGI_Header
+	Version1 uint8 = 1
+
+	// Value for requestId component of FCGI_Header
+	NullRequestID uint16 = 0
+
 	// Values for role component of FCGI_BeginRequestBody
-	FCGI_RESPONDER  = 1
-	FCGI_AUTHORIZER = 2
-	FCGI_FILTER     = 3
+	RoleResponse   uint16 = 1
+	RoleAuthorizer uint16 = 2
+	RoleFilter     uint16 = 3
 
 	// Mask for flags component of FCGI_BeginRequestBody
-	FCGI_KEEP_CONN = 1
+	FCGIKeepConn uint8 = 1
 )
 
-type FastCGIRecord struct {
-	Header *FCGIHeader
+type Header struct {
+	Version         uint8
+	Type            RecordType
+	RequestIDB1     uint8
+	RequestIDB0     uint8
+	ContentLengthB1 uint8
+	ContentLengthB0 uint8
+	PaddingLength   uint8
+	Reserved        uint8
+}
+
+func (hdr *Header) Bytes() []byte {
+	return []byte{hdr.Version, byte(hdr.Type), hdr.RequestIDB1, hdr.RequestIDB0, hdr.ContentLengthB1, hdr.ContentLengthB0, hdr.PaddingLength, hdr.Reserved}
+}
+
+func (hdr *Header) WithRequestID(id uint16) {
+	hdr.RequestIDB0 = uint8(id)
+	hdr.RequestIDB1 = uint8(id >> 8)
+}
+
+func (hdr *Header) RequestID() uint16 {
+	return uint16(hdr.RequestIDB1)<<8 + uint16(hdr.RequestIDB0)
+}
+
+func (hdr *Header) WithContentLength(l uint16) {
+	hdr.ContentLengthB0 = uint8(l)
+	hdr.ContentLengthB1 = uint8(l >> 8)
+}
+
+func (hdr *Header) ContentLength() uint16 {
+	return uint16(hdr.ContentLengthB1)<<8 + uint16(hdr.ContentLengthB0)
 }
 
 type BeginRequestBody struct {
@@ -51,6 +99,15 @@ type BeginRequestBody struct {
 	RoleB0   uint8
 	Flag     uint8
 	Reserved [5]uint8
+}
+
+func (bqb *BeginRequestBody) Role() uint16 {
+	return uint16(bqb.RoleB1)<<8 + uint16(bqb.RoleB0)
+}
+
+func (bqb *BeginRequestBody) WithRole(r uint16) {
+	bqb.RoleB0 = uint8(r)
+	bqb.RoleB1 = uint8(r >> 8)
 }
 
 type EndRequestBody struct {
@@ -81,41 +138,34 @@ type UnknownTypeBody struct {
 	Reserved [7]uint8
 }
 
-func (bqb *BeginRequestBody) Role() uint16 {
-	return uint16(bqb.RoleB1)<<8 + uint16(bqb.RoleB0)
+type BeginRequestRecord struct {
+	Header *Header
+	Body   *BeginRequestBody
 }
 
-type FCGIHeader struct {
-	Version         uint8
-	Type            uint8
-	RequestIDB1     uint8
-	RequestIDB0     uint8
-	ContentLengthB1 uint8
-	ContentLengthB0 uint8
-	PaddingLength   uint8
-	Reserved        uint8
+func NewBeginRequestRecord(requestID uint16, body *BeginRequestBody) *BeginRequestRecord {
+	header := &Header{Version: Version1, Type: TypeBeginRequest}
+	header.WithContentLength(8)
+	header.WithRequestID(requestID)
+	return &BeginRequestRecord{
+		Header: header,
+		Body:   body,
+	}
 }
 
-func (hdr *FCGIHeader) Bytes() []byte {
-	return []byte{hdr.Type, hdr.Type, hdr.RequestIDB1, hdr.RequestIDB0, hdr.ContentLengthB1, hdr.ContentLengthB0, hdr.PaddingLength, hdr.Reserved}
+type EndRequestRecord struct {
+	Header *Header
+	Body   *EndRequestBody
 }
 
-func (hdr *FCGIHeader) WithRequestID(id uint16) {
-	hdr.RequestIDB0 = uint8(id)
-	hdr.RequestIDB1 = uint8(id >> 8)
-}
-
-func (hdr *FCGIHeader) RequestID() uint16 {
-	return uint16(hdr.RequestIDB1)<<8 + uint16(hdr.RequestIDB0)
-}
-
-func (hdr *FCGIHeader) WithContentLength(l uint16) {
-	hdr.ContentLengthB0 = uint8(l)
-	hdr.ContentLengthB1 = uint8(l >> 8)
-}
-
-func (hdr *FCGIHeader) ContentLength() uint16 {
-	return uint16(hdr.ContentLengthB1)<<8 + uint16(hdr.ContentLengthB0)
+func NewEndRequestRecord(requestID uint16, body *EndRequestBody) *EndRequestRecord {
+	header := &Header{Version: Version1, Type: TypeEndRequest}
+	header.WithContentLength(8)
+	header.WithRequestID(requestID)
+	return &EndRequestRecord{
+		Header: header,
+		Body:   body,
+	}
 }
 
 type NameValuePair struct {
@@ -131,20 +181,24 @@ func UnmarshalNameValuePairs(data []byte) ([]*NameValuePair, error) {
 		if err != nil {
 			return nil, err
 		}
-		nLen := len(nvp.Name)
-		vLen := len(nvp.Value)
-		nextPos := 2 + nLen + vLen
-		if nLen > 127 {
-			nextPos += 3
-		}
-		if vLen > 127 {
-			nextPos += 3
-		}
-		data = data[nextPos:]
 		list = append(list, nvp)
+		data = data[nvp.Length():]
 	}
 
 	return list, nil
+}
+
+func (nvp *NameValuePair) Length() uint16 {
+	nLen := len(nvp.Name)
+	vLen := len(nvp.Value)
+	length := 2 + nLen + vLen
+	if nLen > 127 {
+		length += 3
+	}
+	if vLen > 127 {
+		length += 3
+	}
+	return uint16(length)
 }
 
 func (nvp *NameValuePair) UnmarshalBinary(data []byte) error {
@@ -227,6 +281,7 @@ func (nvp *NameValuePair) MarshalBinary() ([]byte, error) {
 
 	return res, nil
 }
+
 func main() {
 	listener, err := net.Listen("tcp", "0.0.0.0:9191")
 	if err != nil {
@@ -263,7 +318,7 @@ func handleRequest(nginxConn net.Conn, fpmConn net.Conn) {
 		nextStarts = ns
 
 		fmt.Println(header.Type, header.RequestID(), header.ContentLength(), header.PaddingLength)
-		if header.Type == FCGI_PARAMS {
+		if header.Type == TypeParams {
 			pairs, err := UnmarshalNameValuePairs(contentData)
 			if err != nil {
 				panic(err)
@@ -272,7 +327,7 @@ func handleRequest(nginxConn net.Conn, fpmConn net.Conn) {
 				fmt.Printf("  %s: %s\n", string(each.Name), string(each.Value))
 			}
 		}
-		if header.Type == FCGI_STDIN {
+		if header.Type == TypeSTDIn {
 			if header.ContentLength() > 0 {
 				fmt.Printf("  FCGI_STDIN: %s\n", string(contentData))
 			} else {
@@ -305,7 +360,7 @@ func proxyPass(data []byte, fpmConn net.Conn) []byte {
 		nextStarts = ns
 
 		fmt.Println(header.Type, header.RequestID(), header.ContentLength(), header.PaddingLength)
-		if header.Type == FCGI_PARAMS {
+		if header.Type == TypeParams {
 			pairs, err := UnmarshalNameValuePairs(contentData)
 			if err != nil {
 				panic(err)
@@ -314,14 +369,14 @@ func proxyPass(data []byte, fpmConn net.Conn) []byte {
 				fmt.Printf("  %s: %s\n", string(each.Name), string(each.Value))
 			}
 		}
-		if header.Type == FCGI_STDERR || header.Type == FCGI_STDOUT {
+		if header.Type == TypeSTDErr || header.Type == TypeSTDOut {
 			if header.ContentLength() > 0 {
 				fmt.Printf("  FCGI_STDOUT: %s\n", string(contentData))
 			} else {
 				return nil
 			}
 		}
-		if header.Type == FCGI_END_REQUEST {
+		if header.Type == TypeEndRequest {
 			fmt.Println(contentData)
 		}
 	}
@@ -329,15 +384,15 @@ func proxyPass(data []byte, fpmConn net.Conn) []byte {
 	return receive[0:v]
 }
 
-func parseRecord(data []byte, starts int) (*FCGIHeader, []byte, int) {
+func parseRecord(data []byte, starts int) (*Header, []byte, int) {
 	if starts+8 > len(data) {
 		return nil, nil, starts
 	}
 
 	d := data[starts : starts+8]
-	hdr := &FCGIHeader{
+	hdr := &Header{
 		Version:         d[0],
-		Type:            d[1],
+		Type:            RecordType(d[1]),
 		RequestIDB1:     d[2],
 		RequestIDB0:     d[3],
 		ContentLengthB1: d[4],
