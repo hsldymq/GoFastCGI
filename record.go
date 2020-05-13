@@ -59,6 +59,17 @@ const (
 
 	// Mask for flags component of FCGI_BeginRequestBody
 	FlagKeepConn uint8 = 1
+
+	// Values for protocolStatus component of FCGI_EndRequestBody
+	StatusRequestComplete uint8 = 0
+	StatusCantMPXConn     uint8 = 1
+	StatusOverloaded      uint8 = 2
+	StatusUnknownRole     uint8 = 3
+
+	// Variable names for FCGI_GET_VALUES / FCGI_GET_VALUES_RESULT records
+	VarMaxConns  = "FCGI_MAX_CONNS"
+	VarMaxReqs   = "FCGI_MAX_REQS"
+	VarMPXSConns = "FCGI_MPXS_CONNS"
 )
 
 type Header struct {
