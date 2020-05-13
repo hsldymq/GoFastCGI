@@ -218,6 +218,31 @@ func (pr *ParamsRecord) NameValuePairs() []*NameValuePair {
 	return pr.nameValuePairs
 }
 
+type STDInRecord struct {
+	Header *Header
+	data   []byte
+}
+
+func NewSTDInRecord(requestID uint16) *STDInRecord {
+	return &STDInRecord{
+		Header: NewHeader(TypeSTDIn, requestID),
+	}
+}
+
+func (sr *STDInRecord) AppendData(d []byte) int {
+	remain := 65535 - len(sr.data)
+	dLen := len(d)
+	if remain <= 0 {
+		return 0
+	}
+	if remain < dLen {
+		copy(sr.data, d[:remain])
+		return remain
+	}
+	copy(sr.data, d)
+	return dLen
+}
+
 type UnknownTypeBody struct {
 	Type     uint8
 	Reserved [7]uint8
