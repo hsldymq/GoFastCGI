@@ -286,6 +286,33 @@ func (dr *DataRecord) AppendData(d []byte) int {
 	return nBytes
 }
 
+type GetValuesRecord struct {
+	Header         *Header
+	nameValuePairs []*NameValuePair
+}
+
+func NewGetValuesRecord(requestID uint16) *GetValuesRecord {
+	return &GetValuesRecord{
+		Header:         NewHeader(TypeParams, requestID),
+		nameValuePairs: make([]*NameValuePair, 0),
+	}
+}
+
+func (gvr *GetValuesRecord) AddNameValuePair(nvp *NameValuePair) bool {
+	contentLen := gvr.Header.ContentLength()
+	newContentLen := contentLen + nvp.Length()
+	if newContentLen < contentLen {
+		return false
+	}
+	gvr.nameValuePairs = append(gvr.nameValuePairs, nvp)
+	gvr.Header.WithContentLength(newContentLen)
+	return true
+}
+
+func (gvr *GetValuesRecord) NameValuePairs() []*NameValuePair {
+	return gvr.nameValuePairs
+}
+
 type UnknownTypeBody struct {
 	Type     uint8
 	Reserved [7]uint8
