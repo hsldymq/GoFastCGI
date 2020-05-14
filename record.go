@@ -229,18 +229,27 @@ func NewSTDINRecord(requestID uint16) *STDINRecord {
 	}
 }
 
-func (sr *STDINRecord) AppendData(d []byte) int {
-	remain := 65535 - len(sr.data)
-	dLen := len(d)
-	if remain <= 0 {
-		return 0
+func (sir *STDINRecord) AppendData(d []byte) int {
+	data, nBytes := appendData(sir.data, d)
+	sir.data = data
+	return nBytes
+}
+
+type STDOUTRecord struct {
+	Header *Header
+	data   []byte
+}
+
+func NewSTDOUTRecord(requestID uint16) *STDOUTRecord {
+	return &STDOUTRecord{
+		Header: NewHeader(TypeSTDOUT, requestID),
 	}
-	if remain < dLen {
-		copy(sr.data, d[:remain])
-		return remain
-	}
-	copy(sr.data, d)
-	return dLen
+}
+
+func (sor *STDOUTRecord) AppendData(d []byte) int {
+	data, nBytes := appendData(sor.data, d)
+	sor.data = data
+	return nBytes
 }
 
 type UnknownTypeBody struct {
@@ -360,6 +369,20 @@ func (nvp *NameValuePair) MarshalBinary() ([]byte, error) {
 	res = append(res, []byte(nvp.Value)...)
 
 	return res, nil
+}
+
+func appendData(dst, src []byte) ([]byte, int) {
+	remain := 65535 - len(dst)
+	srcLen := len(src)
+	if remain <= 0 {
+		return dst, 0
+	}
+	if remain < srcLen {
+		dst = append(dst, src[:remain]...)
+		return dst, remain
+	}
+	dst = append(dst, src...)
+	return dst, srcLen
 }
 
 func main() {
