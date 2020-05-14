@@ -345,6 +345,18 @@ type UnknownTypeBody struct {
 	Reserved [7]uint8
 }
 
+type UnknownTypeRecord struct {
+	Header *Header
+	Body   *UnknownTypeBody
+}
+
+func NewUnknownTypeRecord(body *UnknownTypeBody) UnknownTypeRecord {
+	return UnknownTypeRecord{
+		Header: NewHeader(TypeUnknownType, NullRequestID),
+		Body:   body,
+	}
+}
+
 type NameValuePair struct {
 	Name  string
 	Value string
