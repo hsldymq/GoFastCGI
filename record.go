@@ -37,9 +37,9 @@ const (
 	TypeAbortRequest    RecordType = 2
 	TypeEndRequest      RecordType = 3
 	TypeParams          RecordType = 4
-	TypeSTDIn           RecordType = 5
-	TypeSTDOut          RecordType = 6
-	TypeSTDErr          RecordType = 7
+	TypeSTDIN           RecordType = 5
+	TypeSTDOUT          RecordType = 6
+	TypeSTDERR          RecordType = 7
 	TypeData            RecordType = 8
 	TypeGetValues       RecordType = 9
 	TypeGetValuesResult RecordType = 10
@@ -218,18 +218,18 @@ func (pr *ParamsRecord) NameValuePairs() []*NameValuePair {
 	return pr.nameValuePairs
 }
 
-type STDInRecord struct {
+type STDINRecord struct {
 	Header *Header
 	data   []byte
 }
 
-func NewSTDInRecord(requestID uint16) *STDInRecord {
-	return &STDInRecord{
-		Header: NewHeader(TypeSTDIn, requestID),
+func NewSTDINRecord(requestID uint16) *STDINRecord {
+	return &STDINRecord{
+		Header: NewHeader(TypeSTDIN, requestID),
 	}
 }
 
-func (sr *STDInRecord) AppendData(d []byte) int {
+func (sr *STDINRecord) AppendData(d []byte) int {
 	remain := 65535 - len(sr.data)
 	dLen := len(d)
 	if remain <= 0 {
@@ -407,7 +407,7 @@ func handleRequest(nginxConn net.Conn, fpmConn net.Conn) {
 				fmt.Printf("  %s: %s\n", string(each.Name), string(each.Value))
 			}
 		}
-		if header.Type == TypeSTDIn {
+		if header.Type == TypeSTDIN {
 			if header.ContentLength() > 0 {
 				fmt.Printf("  FCGI_STDIN: %s\n", string(contentData))
 			} else {
@@ -449,7 +449,7 @@ func proxyPass(data []byte, fpmConn net.Conn) []byte {
 				fmt.Printf("  %s: %s\n", string(each.Name), string(each.Value))
 			}
 		}
-		if header.Type == TypeSTDErr || header.Type == TypeSTDOut {
+		if header.Type == TypeSTDERR || header.Type == TypeSTDOUT {
 			if header.ContentLength() > 0 {
 				fmt.Printf("  FCGI_STDOUT: %s\n", string(contentData))
 			} else {
