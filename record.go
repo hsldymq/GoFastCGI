@@ -252,6 +252,23 @@ func (sor *STDOUTRecord) AppendData(d []byte) int {
 	return nBytes
 }
 
+type STDERRRecord struct {
+	Header *Header
+	data   []byte
+}
+
+func NewSTDERRRecord(requestID uint16) *STDERRRecord {
+	return &STDERRRecord{
+		Header: NewHeader(TypeSTDOUT, requestID),
+	}
+}
+
+func (ser *STDERRRecord) AppendData(d []byte) int {
+	data, nBytes := appendData(ser.data, d)
+	ser.data = data
+	return nBytes
+}
+
 type UnknownTypeBody struct {
 	Type     uint8
 	Reserved [7]uint8
