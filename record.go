@@ -70,6 +70,19 @@ const (
 	VarMPXSConns = "FCGI_MPXS_CONNS"
 )
 
+type Session struct {
+	buff      []byte
+	MaxConns  string
+	MaxReqs   string
+	MPXSConns string
+	KeepConn  bool
+}
+
+type FCGIRecord interface {
+	Header() *Header
+	Content() []byte
+}
+
 type Header struct {
 	Version         uint8
 	Type            RecordType
@@ -81,10 +94,10 @@ type Header struct {
 	Reserved        uint8
 }
 
-func NewHeader(hType RecordType, requestID uint16) *Header {
+func NewHeader(rType RecordType, requestID uint16) *Header {
 	h := &Header{
 		Version: Version1,
-		Type:    hType,
+		Type:    rType,
 	}
 	h.WithRequestID(requestID)
 	return h
@@ -129,17 +142,21 @@ func (bqb *BeginRequestBody) WithRole(r uint16) {
 }
 
 type BeginRequestRecord struct {
-	Header *Header
-	Body   *BeginRequestBody
+	header *Header
+	body   *BeginRequestBody
 }
 
 func NewBeginRequestRecord(requestID uint16, body *BeginRequestBody) *BeginRequestRecord {
 	header := NewHeader(TypeBeginRequest, requestID)
 	header.WithContentLength(8)
 	return &BeginRequestRecord{
-		Header: header,
-		Body:   body,
+		header: header,
+		body:   body,
 	}
+}
+
+func (brr *BeginRequestRecord) Header() *Header {
+	return brr.header
 }
 
 type EndRequestBody struct {
